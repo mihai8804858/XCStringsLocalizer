@@ -129,8 +129,8 @@ jobs:
           # Create a zip file with the binary
           cd $BINARY_PATH
 
-          # Assuming your binary name matches the repo name
-          BINARY_NAME="XCStringsLocalizer"
+          # Binary name matches the command name from Package.swift
+          BINARY_NAME="xcstrings-localizer"
 
           if [ -f "$BINARY_NAME" ]; then
             zip -j "$BINARY_NAME-$NEW_VERSION-macos.zip" "$BINARY_NAME"

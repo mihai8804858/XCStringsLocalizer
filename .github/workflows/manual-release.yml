@@ -117,7 +117,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           cd $BINARY_PATH
-          BINARY_NAME="XCStringsLocalizer"
+          BINARY_NAME="xcstrings-localizer"
 
           if [ -f "$BINARY_NAME" ]; then
             zip -j "$BINARY_NAME-$VERSION-macos.zip" "$BINARY_NAME"
