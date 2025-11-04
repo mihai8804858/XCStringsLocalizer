@@ -95,12 +95,17 @@ jobs:
           # Verify the change
           grep "version:" Sources/Main.swift
 
-          # Commit the version update
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Sources/Main.swift
-          git commit -m "chore: bump version to $NEW_VERSION"
-          git push
+          # Check if there are changes to commit
+          if git diff --quiet Sources/Main.swift; then
+            echo "No version changes needed"
+          else
+            # Commit the version update
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add Sources/Main.swift
+            git commit -m "chore: bump version to $NEW_VERSION"
+            git push
+          fi
 
       - name: Build release binary
         run: |
