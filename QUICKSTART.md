@@ -79,14 +79,6 @@ xcstrings-localizer --help
 6. ✅ Preserves placeholders
 7. ✅ Saves back to file
 
-## Advantages Over Python Version
-
-- ✅ **No dependencies to install** - just build and run
-- ✅ **Native performance** - compiled binary
-- ✅ **No pip/virtualenv issues** - pure Swift
-- ✅ **Easy distribution** - single binary
-- ✅ **Perfect for Mac/iOS devs** - written in Swift
-
 ## Next Steps
 
 - Read the full [README.md](README.md)

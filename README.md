@@ -2,14 +2,6 @@
 
 A native Swift command-line tool for automatically localizing Xcode `.xcstrings` files using AI-powered translation via OpenAI's API.
 
-## Why Swift?
-
-- **Native Performance**: Compiled Swift binary with no runtime dependencies
-- **No Package Management**: No pip, npm, or dependency hell
-- **Perfect for iOS/Mac Devs**: Written in the same language as your app
-- **Easy Distribution**: Single binary you can share with your team
-- **Xcode Integration**: Can be easily integrated into build phases
-
 ## Features
 
 - ✅ **Automatic Translation**: Translates strings to all target languages in your `.xcstrings` file
@@ -376,10 +368,6 @@ The tool uses intelligent batch processing to minimize API calls:
 - **Faster execution** due to fewer network round-trips
 - **Lower costs** by reducing redundant prompt overhead
 
-**Example:** Translating 150 strings to 5 languages:
-- Old approach: 750 API calls
-- New approach: 50 API calls (15x fewer!)
-
 ### Cost Estimates
 
 For a typical app with 1000 strings and 10 target languages:
@@ -390,17 +378,6 @@ For a typical app with 1000 strings and 10 target languages:
 **Without batching, costs would be ~10-15x higher!**
 
 The tool also caches translations within a session to minimize costs on re-runs.
-
-## Advantages Over Python Version
-
-| Feature | Swift | Python |
-|---------|-------|--------|
-| Installation | Single binary | Requires pip packages |
-| Dependencies | None (native) | 4+ Python packages |
-| Speed | Fast (compiled) | Slower (interpreted) |
-| Distribution | Copy binary | Share script + deps |
-| Xcode Integration | Native | External tool |
-| macOS Issues | None | pip externally-managed env |
 
 ## Troubleshooting
 
