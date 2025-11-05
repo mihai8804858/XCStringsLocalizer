@@ -130,11 +130,12 @@ class OpenAIClient {
         2. Preserve ALL placeholders exactly (e.g., %@, %d, %.0f, %1$@, {variable})
         3. Preserve formatting characters like \\n
         4. Consider: naturalness, cultural appropriateness, tone, and UI context
-        5. If the current translation is good enough, set confidence to 1-3 (will be filtered out)
+        5. Preserve capitalization style: if a string is lowercased and has no ending punctuation, keep it lowercased (don't make it a sentence)
+        6. If the current translation is good enough, set confidence to 1-3 (will be filtered out)
         """
 
         if let appDesc = appDescription {
-            prompt += "\n6. App context: \(appDesc)"
+            prompt += "\n7. App context: \(appDesc)"
         }
 
         prompt += "\n\nTranslations to analyze (JSON format):\n"
@@ -240,15 +241,16 @@ class OpenAIClient {
         2. Preserve formatting characters like \\n (newlines) and special characters
         3. Maintain the same tone and style
         4. If the text is a UI element, keep it concise
-        5. Return ONLY the translated text, no explanations or additional content
+        5. Preserve capitalization style: if a string is lowercased and has no ending punctuation, keep it lowercased (don't make it a sentence)
+        6. Return ONLY the translated text, no explanations or additional content
         """
 
         if let appDesc = appDescription {
-            prompt += "\n6. App context: \(appDesc)"
+            prompt += "\n7. App context: \(appDesc)"
         }
 
         if let context = context {
-            prompt += "\n7. String context: \(context)"
+            prompt += "\n8. String context: \(context)"
         }
 
         prompt += "\n\nText to translate: \(text)"
