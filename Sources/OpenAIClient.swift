@@ -354,12 +354,21 @@ struct ChatCompletionRequest: Codable {
     let model: String
     let messages: [ChatMessage]
     let maxTokens: Int?
+    let maxCompletionTokens: Int?
     let temperature: Double?
 
-    init(model: String, messages: [ChatMessage], maxTokens: Int? = nil, temperature: Double? = nil) {
+    init(model: String, messages: [ChatMessage], maxTokens: Int? = nil, maxCompletionTokens: Int? = nil, temperature: Double? = nil) {
         self.model = model
         self.messages = messages
-        self.maxTokens = maxTokens
+        // GPT-5 models use maxCompletionTokens, GPT-4 and older use maxTokens
+        // Only send the appropriate parameter based on model
+        if model.hasPrefix("gpt-5") || model.hasPrefix("o1") || model.hasPrefix("o3") {
+            self.maxTokens = nil
+            self.maxCompletionTokens = maxCompletionTokens ?? maxTokens
+        } else {
+            self.maxTokens = maxTokens
+            self.maxCompletionTokens = nil
+        }
         self.temperature = temperature
     }
 }
