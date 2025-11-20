@@ -186,29 +186,59 @@ struct UpdateChecker {
         let currentBinaryURL = URL(fileURLWithPath: currentBinaryPath)
         let parentDir = currentBinaryURL.deletingLastPathComponent().path
 
-        if FileManager.default.isWritableFile(atPath: parentDir) {
-            // Direct copy
-            try FileManager.default.removeItem(atPath: currentBinaryPath)
-            try FileManager.default.copyItem(at: binaryPath, to: currentBinaryURL)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: currentBinaryPath)
-        } else {
-            // Need sudo
-            print("\nNeed administrator permission to update...", to: &stderrStream)
-            let sudoProcess = Process()
-            sudoProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            sudoProcess.arguments = ["mv", binaryPath.path, currentBinaryPath]
-            try sudoProcess.run()
-            sudoProcess.waitUntilExit()
+        // Use atomic replacement: copy to temp location in same directory, then replace
+        // This ensures we don't delete the old binary until the new one is successfully in place
+        let tempPath = currentBinaryURL.deletingLastPathComponent()
+            .appendingPathComponent(".\(UUID().uuidString)-xcstrings-localizer.tmp")
 
-            guard sudoProcess.terminationStatus == 0 else {
+        if FileManager.default.isWritableFile(atPath: parentDir) {
+            // Direct atomic replacement
+            // 1. Copy new binary to temp location
+            try FileManager.default.copyItem(at: binaryPath, to: tempPath)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempPath.path)
+
+            // 2. Atomically replace old binary with new one
+            // replaceItemAt is atomic on the same filesystem
+            _ = try FileManager.default.replaceItemAt(
+                currentBinaryURL,
+                withItemAt: tempPath,
+                backupItemName: nil,
+                options: []
+            )
+        } else {
+            // Need sudo - use mv which is atomic on the same filesystem
+            print("\nNeed administrator permission to update...", to: &stderrStream)
+
+            // First copy to temp location with sudo
+            let copyProcess = Process()
+            copyProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            copyProcess.arguments = ["cp", binaryPath.path, tempPath.path]
+            try copyProcess.run()
+            copyProcess.waitUntilExit()
+
+            guard copyProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempPath)
                 throw UpdateError.installationFailed
             }
 
+            // Set permissions
             let chmodProcess = Process()
             chmodProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            chmodProcess.arguments = ["chmod", "+x", currentBinaryPath]
+            chmodProcess.arguments = ["chmod", "755", tempPath.path]
             try chmodProcess.run()
             chmodProcess.waitUntilExit()
+
+            // Atomically move temp file to final location (mv is atomic on same filesystem)
+            let mvProcess = Process()
+            mvProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            mvProcess.arguments = ["mv", "-f", tempPath.path, currentBinaryPath]
+            try mvProcess.run()
+            mvProcess.waitUntilExit()
+
+            guard mvProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempPath)
+                throw UpdateError.installationFailed
+            }
         }
 
         print("\n✓ Successfully updated to \(release.tagName)!", to: &stderrStream)
