@@ -100,7 +100,7 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         name: [.short, .long],
         help: "OpenAI model to use for translation"
     )
-    var model: String = "gpt-4o-mini"
+    var model: String = "gpt-5-mini"
 
     @Option(
         name: .long,

@@ -151,7 +151,7 @@ xcstrings-localizer --suggest --keys "Welcome"
 xcstrings-localizer Localizable.xcstrings --output output.xcstrings
 
 # Use different model
-xcstrings-localizer --model gpt-4o
+xcstrings-localizer --model gpt-5
 ```
 
 ### Get Help
@@ -429,26 +429,29 @@ fi
 | `--force` | `-f` | Re-translate already translated strings | `false` |
 | `--dry-run` | `-d` | Preview changes without saving | `false` |
 | `--suggest` | `-s` | Analyze and suggest improvements (interactive) | `false` |
-| `--model` | `-m` | OpenAI model to use | `gpt-4o-mini` |
+| `--model` | `-m` | OpenAI model to use | `gpt-5-mini` |
 | `--api-key` | | API key (overrides env var) | From env |
 | `--help` | `-h` | Show help | |
 | `--version` | | Show version | |
 
 ## Models
 
-Available OpenAI models (2024-2025):
+Available OpenAI models (2025):
 
-- **gpt-4o-mini** (default): Best cost-performance balance for translation
-  - Input: $0.15 per 1M tokens
-  - Output: $0.60 per 1M tokens
-  - 128K context, excellent for most translation tasks
+- **gpt-5-nano**: Lowest cost
+  - Input: $0.05 per 1M tokens
+  - Output: $0.40 per 1M tokens
+  - 128K context
+  
+- **gpt-5-mini** (default): Best cost-performance balance for translation
+  - Input: $0.25 per 1M tokens
+  - Output: $2.00 per 1M tokens
+  - 128K context
 
-- **gpt-4o**: Highest quality, recommended for premium content
-  - Input: $2.50 per 1M tokens
+- **gpt-5**: Highest quality, recommended for premium content
+  - Input: $1.25 per 1M tokens
   - Output: $10.00 per 1M tokens
-  - 128K context, multimodal capabilities
-
-**Recommendation:** Stick with `gpt-4o-mini` (default) for everyday translations. Only use `gpt-4o` for critical marketing copy, legal documents, or when you need the absolute best quality.
+  - 128K context
 
 ## Translation Behavior
 
@@ -587,20 +590,6 @@ The tool uses intelligent batch processing to minimize API calls:
 - **Reduces API calls by 93%** compared to single-string requests
 - **Faster execution** due to fewer network round-trips
 - **Lower costs** by reducing redundant prompt overhead
-
-### Cost Estimates (2024-2025 Pricing)
-
-For a typical app with 1000 strings and 10 target languages:
-
-- **gpt-4o-mini** (default): ~$0.50-$1.50 for complete translation (with batching)
-  - Input: $0.15 per 1M tokens
-  - Output: $0.60 per 1M tokens
-
-- **gpt-4o**: ~$10-$25 for complete translation (with batching)
-  - Input: $2.50 per 1M tokens
-  - Output: $10.00 per 1M tokens
-
-**Without batching, costs would be ~10-15x higher!**
 
 The tool also caches translations within a session to minimize costs on re-runs.
 

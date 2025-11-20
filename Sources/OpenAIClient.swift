@@ -9,7 +9,7 @@ class OpenAIClient {
     private let session: URLSession
     private let appDescription: String?
 
-    init(apiKey: String, model: String = "gpt-4o-mini", appDescription: String? = nil) {
+    init(apiKey: String, model: String = "gpt-5-mini", appDescription: String? = nil) {
         self.apiKey = apiKey
         self.model = model
         self.appDescription = appDescription
