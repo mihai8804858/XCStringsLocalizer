@@ -17,7 +17,7 @@ class XCStringsLocalizer {
         let context: String?
     }
 
-    init(apiKey: String, model: String = "gpt-4o-mini", appDescription: String? = nil) {
+    init(apiKey: String, model: String = "gpt-5-mini", appDescription: String? = nil) {
         self.client = OpenAIClient(apiKey: apiKey, model: model, appDescription: appDescription)
     }
 
@@ -336,11 +336,23 @@ class XCStringsLocalizer {
 
     private func getAllLanguages(from xcstrings: XCStringsFile) -> Set<String> {
         var languages = Set<String>()
-        for entry in xcstrings.strings.values {
-            if let localizations = entry.localizations {
-                languages.formUnion(localizations.keys)
+
+        // First, try to get languages from the Xcode project's knownRegions
+        if let projectLanguages = XcodeProjectParser.getProjectLanguages() {
+            print("Found Xcode project with knownRegions: \(projectLanguages.joined(separator: ", "))", to: &stderrStream)
+            languages = Set(projectLanguages)
+        }
+
+        // If no project found, fall back to languages in the catalog
+        if languages.isEmpty {
+            print("No Xcode project found, using languages from catalog", to: &stderrStream)
+            for entry in xcstrings.strings.values {
+                if let localizations = entry.localizations {
+                    languages.formUnion(localizations.keys)
+                }
             }
         }
+
         return languages
     }
 

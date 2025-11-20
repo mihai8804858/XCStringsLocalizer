@@ -24,20 +24,26 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         • AI-powered translation improvement suggestions
 
         EXAMPLES:
-        # Translate entire file
+        # Auto-discover and translate all .xcstrings files in current directory
+        xcstrings-localizer
+
+        # Translate a specific file
         xcstrings-localizer Localizable.xcstrings
+
+        # Translate multiple files
+        xcstrings-localizer Localizable.xcstrings InfoPlist.xcstrings
 
         # Translate specific keys
         xcstrings-localizer Localizable.xcstrings --keys "Welcome" --keys "Goodbye"
 
         # Force re-translation
-        xcstrings-localizer Localizable.xcstrings --force
+        xcstrings-localizer --force
 
         # Preview changes without saving
-        xcstrings-localizer Localizable.xcstrings --dry-run
+        xcstrings-localizer --dry-run
 
         # Get AI suggestions for improving existing translations
-        xcstrings-localizer Localizable.xcstrings --suggest
+        xcstrings-localizer --suggest
 
         SETUP:
         Set your OpenAI API key via:
@@ -49,10 +55,10 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
     )
 
     @Argument(
-        help: "Path to the .xcstrings file to localize",
+        help: "Path(s) to .xcstrings file(s) to localize (if not specified, finds all .xcstrings files in current directory)",
         completion: .file(extensions: ["xcstrings"])
     )
-    var inputFile: String
+    var inputFiles: [String] = []
 
     @Option(
         name: [.short, .long],
@@ -94,7 +100,7 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         name: [.short, .long],
         help: "OpenAI model to use for translation"
     )
-    var model: String = "gpt-4o-mini"
+    var model: String = "gpt-5-mini"
 
     @Option(
         name: .long,
@@ -122,53 +128,178 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
             print("Using app context: \(desc.prefix(60))...", to: &stderrStream)
         }
 
-        // Validate input file
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: inputFile) {
-            print("Error: File not found: \(inputFile)", to: &stderrStream)
-            throw ExitCode.failure
-        }
-
-        if !inputFile.hasSuffix(".xcstrings") {
-            print("Warning: Input file doesn't have .xcstrings extension", to: &stderrStream)
-        }
-
-        // Create localizer and run
-        let localizer = XCStringsLocalizer(apiKey: apiKey, model: model, appDescription: appDescription)
-
-        do {
-            if suggest {
-                // Run suggestion mode
-                try await localizer.suggestImprovements(
-                    inputPath: inputFile,
-                    outputPath: output,
-                    keys: keys.isEmpty ? nil : keys,
-                    languages: language.isEmpty ? nil : language
-                )
-            } else {
-                // Run normal translation mode
-                let stats = try await localizer.localize(
-                    inputPath: inputFile,
-                    outputPath: output,
-                    keys: keys.isEmpty ? nil : keys,
-                    force: force,
-                    dryRun: dryRun
-                )
-
-                print("\n✓ Localization complete!", to: &stderrStream)
-
-                // Exit with non-zero if there were errors
-                if stats.errors > 0 {
-                    throw ExitCode(1)
+        // Determine which files to process
+        let filesToProcess: [String]
+        if inputFiles.isEmpty {
+            // Auto-discover .xcstrings files
+            let discovered = XcodeProjectParser.findXCStringsFiles()
+            if discovered.isEmpty {
+                print("Error: No .xcstrings files found in current directory or subdirectories", to: &stderrStream)
+                throw ExitCode.failure
+            }
+            print("Found \(discovered.count) .xcstrings file(s):", to: &stderrStream)
+            for file in discovered {
+                print("  • \(file)", to: &stderrStream)
+            }
+            print("", to: &stderrStream)
+            filesToProcess = discovered
+        } else {
+            // Validate provided files
+            let fileManager = FileManager.default
+            for file in inputFiles {
+                if !fileManager.fileExists(atPath: file) {
+                    print("Error: File not found: \(file)", to: &stderrStream)
+                    throw ExitCode.failure
+                }
+                if !file.hasSuffix(".xcstrings") {
+                    print("Warning: \(file) doesn't have .xcstrings extension", to: &stderrStream)
                 }
             }
-        } catch let error as DecodingError {
-            print("Error: Invalid JSON in file", to: &stderrStream)
-            print(error.localizedDescription, to: &stderrStream)
-            throw ExitCode.failure
-        } catch {
-            print("Error: \(error.localizedDescription)", to: &stderrStream)
-            throw ExitCode.failure
+            filesToProcess = inputFiles
+        }
+
+        // Create localizer
+        let localizer = XCStringsLocalizer(apiKey: apiKey, model: model, appDescription: appDescription)
+
+        // Process each file
+        var totalErrors = 0
+        for (index, inputFile) in filesToProcess.enumerated() {
+            if filesToProcess.count > 1 {
+                print("", to: &stderrStream)
+                print("═══════════════════════════════════════════════════════════", to: &stderrStream)
+                print("Processing file \(index + 1)/\(filesToProcess.count)", to: &stderrStream)
+                print("═══════════════════════════════════════════════════════════", to: &stderrStream)
+            }
+
+            do {
+                if suggest {
+                    // Run suggestion mode
+                    try await localizer.suggestImprovements(
+                        inputPath: inputFile,
+                        outputPath: output,
+                        keys: keys.isEmpty ? nil : keys,
+                        languages: language.isEmpty ? nil : language
+                    )
+                } else {
+                    // Run normal translation mode
+                    let stats = try await localizer.localize(
+                        inputPath: inputFile,
+                        outputPath: output,
+                        keys: keys.isEmpty ? nil : keys,
+                        force: force,
+                        dryRun: dryRun
+                    )
+
+                    totalErrors += stats.errors
+                }
+            } catch let error as DecodingError {
+                print("Error: Invalid JSON in file \(inputFile)", to: &stderrStream)
+                print(error.localizedDescription, to: &stderrStream)
+                totalErrors += 1
+            } catch {
+                print("Error processing \(inputFile): \(error.localizedDescription)", to: &stderrStream)
+                totalErrors += 1
+            }
+        }
+
+        if filesToProcess.count > 1 {
+            print("", to: &stderrStream)
+            print("═══════════════════════════════════════════════════════════", to: &stderrStream)
+            print("All .xcstrings files processed!", to: &stderrStream)
+            print("═══════════════════════════════════════════════════════════", to: &stderrStream)
+        }
+
+        // Process localized-extras if the directory exists
+        if let extrasDir = XcodeProjectParser.findLocalizedExtrasDirectory(),
+           !suggest {  // Don't process extras in suggestion mode
+            print("", to: &stderrStream)
+            print("Found localized-extras directory", to: &stderrStream)
+
+            let sourceFiles = XcodeProjectParser.findLocalizedExtrasSourceFiles(in: extrasDir)
+            if !sourceFiles.isEmpty {
+                print("Found \(sourceFiles.count) source file(s) to translate:", to: &stderrStream)
+                for file in sourceFiles {
+                    let filename = (file as NSString).lastPathComponent
+                    print("  • \(filename)", to: &stderrStream)
+                }
+                print("", to: &stderrStream)
+
+                // Get target languages (same as for xcstrings)
+                // We'll use the localizer's client directly
+                let client = OpenAIClient(apiKey: apiKey, model: model, appDescription: appDescription)
+
+                // Determine target languages
+                var targetLanguages: Set<String> = []
+                if let projectLanguages = XcodeProjectParser.getProjectLanguages() {
+                    targetLanguages = Set(projectLanguages)
+                } else if !filesToProcess.isEmpty {
+                    // Get languages from first xcstrings file
+                    if let data = try? Data(contentsOf: URL(fileURLWithPath: filesToProcess[0])),
+                       let xcstrings = try? JSONDecoder().decode(XCStringsFile.self, from: data) {
+                        for entry in xcstrings.strings.values {
+                            if let localizations = entry.localizations {
+                                targetLanguages.formUnion(localizations.keys)
+                            }
+                        }
+                        targetLanguages.remove(xcstrings.sourceLanguage)
+                    }
+                }
+
+                if targetLanguages.isEmpty {
+                    print("Warning: No target languages found for localized-extras", to: &stderrStream)
+                } else {
+                    print("Translating to: \(targetLanguages.sorted().joined(separator: ", "))", to: &stderrStream)
+                    print("", to: &stderrStream)
+
+                    for sourceFile in sourceFiles {
+                        let filename = (sourceFile as NSString).lastPathComponent
+                        print("Processing: \(filename)", to: &stderrStream)
+
+                        // Read source file
+                        guard let content = try? String(contentsOfFile: sourceFile, encoding: .utf8) else {
+                            print("  ✗ Error reading file", to: &stderrStream)
+                            totalErrors += 1
+                            continue
+                        }
+
+                        for targetLang in targetLanguages.sorted() {
+                            let targetPath = XcodeProjectParser.localizedFilePath(for: sourceFile, language: targetLang)
+                            let targetFilename = (targetPath as NSString).lastPathComponent
+
+                            // Skip if target already exists (unless force)
+                            if FileManager.default.fileExists(atPath: targetPath) && !force {
+                                print("  ⊙ \(targetFilename) (already exists, skipping)", to: &stderrStream)
+                                continue
+                            }
+
+                            if !dryRun {
+                                do {
+                                    let translated = try await client.translateFile(
+                                        content: content,
+                                        targetLanguage: targetLang,
+                                        filename: filename
+                                    )
+
+                                    try translated.write(toFile: targetPath, atomically: true, encoding: .utf8)
+                                    print("  ✓ \(targetFilename)", to: &stderrStream)
+                                } catch {
+                                    print("  ✗ \(targetFilename): \(error.localizedDescription)", to: &stderrStream)
+                                    totalErrors += 1
+                                }
+                            } else {
+                                print("  ○ \(targetFilename) (would translate)", to: &stderrStream)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        print("\n✓ Localization complete!", to: &stderrStream)
+
+        // Exit with non-zero if there were errors
+        if totalErrors > 0 {
+            throw ExitCode(1)
         }
     }
 }
