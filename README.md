@@ -4,7 +4,10 @@ A native Swift command-line tool for automatically localizing Xcode `.xcstrings`
 
 ## Features
 
-- ✅ **Automatic Translation**: Translates strings to all target languages in your `.xcstrings` file
+- ✅ **Auto-Discovery**: Automatically finds all `.xcstrings` files in your project
+- ✅ **Xcode Project Integration**: Reads target languages from your project's `knownRegions`
+- ✅ **Multi-File Support**: Process one, multiple, or all `.xcstrings` files at once
+- ✅ **Automatic Translation**: Translates strings to all target languages
 - ✅ **AI-Powered Suggestions**: Interactive review of existing translations with improvement suggestions
 - ✅ **Batch Processing**: Groups strings for efficient API calls (15 strings at a time)
 - ✅ **App Context Support**: Optional app description for better translation quality
@@ -96,45 +99,57 @@ APP_DESCRIPTION='A productivity app for managing daily tasks and reminders on iO
 ### Basic Usage
 
 ```bash
-# Translate entire file
+# Auto-discover and translate all .xcstrings files in your project
+xcstrings-localizer
+
+# Translate a specific file
 xcstrings-localizer Localizable.xcstrings
 
+# Translate multiple specific files
+xcstrings-localizer Localizable.xcstrings InfoPlist.xcstrings
+
 # Or if not installed globally
-swift run xcstrings-localizer Localizable.xcstrings
+swift run xcstrings-localizer
 ```
+
+### How It Works
+
+1. **Language Detection**: Checks your Xcode project's `knownRegions` first, then falls back to languages in the catalog
+2. **File Discovery**: If no files specified, automatically finds all `.xcstrings` files in current directory and subdirectories
+3. **Smart Translation**: Only translates missing or new strings (use `--force` to retranslate all)
 
 ### Common Options
 
 ```bash
-# Preview changes (dry run)
+# Auto-discover and preview changes (dry run)
+xcstrings-localizer --dry-run
+
+# Auto-discover and force re-translation of all strings
+xcstrings-localizer --force
+
+# Translate specific keys in discovered files
+xcstrings-localizer --keys "Welcome" --keys "Goodbye"
+
+# Translate a specific file with preview
 xcstrings-localizer Localizable.xcstrings --dry-run
 
-# Translate specific keys
-xcstrings-localizer Localizable.xcstrings --keys "Welcome" --keys "Goodbye"
-
-# Force re-translation
-xcstrings-localizer Localizable.xcstrings --force
-
 # Get AI suggestions for improving existing translations (interactive)
-xcstrings-localizer Localizable.xcstrings --suggest
+xcstrings-localizer --suggest
 
 # Analyze only French translations
-xcstrings-localizer Localizable.xcstrings --suggest --language fr
+xcstrings-localizer --suggest --language fr
 
-# Analyze French and German translations
+# Analyze French and German translations in a specific file
 xcstrings-localizer Localizable.xcstrings --suggest --language fr --language de
 
 # Analyze specific keys for improvement suggestions
-xcstrings-localizer Localizable.xcstrings --suggest --keys "Welcome"
+xcstrings-localizer --suggest --keys "Welcome"
 
-# Analyze specific keys in French only
-xcstrings-localizer Localizable.xcstrings --suggest --keys "Welcome" --language fr
-
-# Specify output file
-xcstrings-localizer input.xcstrings --output output.xcstrings
+# Specify output file (only works with single input file)
+xcstrings-localizer Localizable.xcstrings --output output.xcstrings
 
 # Use different model
-xcstrings-localizer Localizable.xcstrings --model gpt-4o
+xcstrings-localizer --model gpt-4o
 ```
 
 ### Get Help
@@ -145,19 +160,26 @@ xcstrings-localizer --help
 
 ## Examples
 
-### Example 1: First-Time Translation
+### Example 1: Auto-Discovery in Your Project
 
 ```bash
+# Navigate to your Xcode project directory
+cd ~/MyApp
+
 # Preview what will be translated
-xcstrings-localizer ~/MyApp/Localizable.xcstrings --dry-run
+xcstrings-localizer --dry-run
 
 # Perform the translation
-xcstrings-localizer ~/MyApp/Localizable.xcstrings
+xcstrings-localizer
 ```
 
 **Output:**
 ```
+Found 1 .xcstrings file(s):
+  • /Users/you/MyApp/Localizable.xcstrings
+
 Loading: /Users/you/MyApp/Localizable.xcstrings
+Found Xcode project with knownRegions: ar, de, es, fr, hi, it, ja, ko, pt, ru
 Using app context: A productivity app for managing daily tasks and reminders...
 Source language: en
 Target languages: ar, de, es, fr, hi, it, ja, ko, pt, ru
@@ -203,12 +225,20 @@ xcstrings-localizer Localizable.xcstrings \
 ### Example 3: Review and Improve Existing Translations
 
 ```bash
+# Auto-discover and suggest improvements
+xcstrings-localizer --suggest
+
+# Or for a specific file
 xcstrings-localizer Localizable.xcstrings --suggest
 ```
 
 **Interactive Output:**
 ```
+Found 1 .xcstrings file(s):
+  • /Users/you/MyApp/Localizable.xcstrings
+
 Loading: Localizable.xcstrings
+Found Xcode project with knownRegions: de, es, fr, ja
 Source language: en
 Target languages: de, es, fr, ja
 
@@ -270,11 +300,11 @@ Add a new "Run Script" phase in Xcode:
 ```bash
 #!/bin/bash
 
-XCSTRINGS="${SRCROOT}/Localizable.xcstrings"
+cd "${SRCROOT}"
 
-# Check for untranslated strings
-if /usr/local/bin/xcstrings-localizer "$XCSTRINGS" --dry-run 2>&1 | grep -q "Translations created"; then
-    echo "warning: Untranslated strings detected. Run: xcstrings-localizer $XCSTRINGS"
+# Check for untranslated strings using auto-discovery
+if /usr/local/bin/xcstrings-localizer --dry-run 2>&1 | grep -q "Translations created"; then
+    echo "warning: Untranslated strings detected. Run: xcstrings-localizer"
 fi
 ```
 
@@ -289,11 +319,13 @@ Create `.git/hooks/pre-commit`:
 CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep '\.xcstrings$')
 
 if [ ! -z "$CHANGED" ]; then
-    for file in $CHANGED; do
-        echo "Auto-translating: $file"
-        xcstrings-localizer "$file"
-        git add "$file"
-    done
+    echo "Auto-translating modified .xcstrings files..."
+
+    # Translate all modified files at once
+    xcstrings-localizer $CHANGED
+
+    # Re-add the translated files
+    git add $CHANGED
 fi
 ```
 
@@ -321,6 +353,15 @@ Available OpenAI models:
 - **gpt-4-turbo**: Balanced option
 
 ## Translation Behavior
+
+### Language Detection
+
+The tool determines target languages in this priority order:
+
+1. **Xcode Project's `knownRegions`** (primary) - Searches up to 3 parent directories for `.xcodeproj` files
+2. **Catalog Languages** (fallback) - Uses languages already defined in the `.xcstrings` file
+
+This ensures translations match your Xcode project's supported languages.
 
 ### What Gets Translated
 
@@ -351,13 +392,14 @@ All format specifiers are preserved:
 
 ```
 XCStringsLocalizer/
-├── Package.swift              # Swift Package manifest
+├── Package.swift                # Swift Package manifest
 ├── Sources/
-│   ├── Main.swift            # CLI entry point
-│   ├── XCStringsModels.swift # Data models
-│   ├── OpenAIClient.swift    # API client
-│   ├── Localizer.swift       # Core logic
-│   └── Config.swift          # Configuration
+│   ├── Main.swift              # CLI entry point & argument parsing
+│   ├── XCStringsModels.swift   # Data models for .xcstrings format
+│   ├── OpenAIClient.swift      # OpenAI API client
+│   ├── Localizer.swift         # Core translation logic
+│   ├── XcodeProjectParser.swift # Xcode project & file discovery
+│   └── Config.swift            # Configuration (.env loading)
 └── README.md
 ```
 
@@ -412,13 +454,12 @@ jobs:
           cd XCStringsLocalizer
           swift build -c release
 
-      - name: Translate strings
+      - name: Translate strings (auto-discovery)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          find . -name "*.xcstrings" | while read file; do
-            XCStringsLocalizer/.build/release/xcstrings-localizer "$file"
-          done
+          cd MyApp
+          ../XCStringsLocalizer/.build/release/xcstrings-localizer
 
       - name: Commit changes
         run: |

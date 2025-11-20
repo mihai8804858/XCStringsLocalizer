@@ -30,11 +30,14 @@ Get your key from: https://platform.openai.com/api-keys
 ## First Translation
 
 ```bash
-# Preview what will be translated
-.build/release/xcstrings-localizer ~/MyApp/Localizable.xcstrings --dry-run
+# Navigate to your Xcode project directory
+cd ~/MyApp
+
+# Preview what will be translated (auto-discovers .xcstrings files)
+../XCStringsLocalizer/.build/release/xcstrings-localizer --dry-run
 
 # Perform the translation
-.build/release/xcstrings-localizer ~/MyApp/Localizable.xcstrings
+../XCStringsLocalizer/.build/release/xcstrings-localizer
 ```
 
 ## Optional: Install Globally
@@ -43,27 +46,37 @@ Get your key from: https://platform.openai.com/api-keys
 # Install to /usr/local/bin
 sudo cp .build/release/xcstrings-localizer /usr/local/bin/
 
-# Now use from anywhere
-xcstrings-localizer ~/MyApp/Localizable.xcstrings
+# Now use from anywhere in your project directories
+cd ~/MyApp
+xcstrings-localizer
 ```
 
 ## Common Commands
 
 ```bash
-# Translate entire file
+# Auto-discover and translate all .xcstrings files
+xcstrings-localizer
+
+# Translate a specific file
 xcstrings-localizer Localizable.xcstrings
 
-# Translate specific keys
-xcstrings-localizer Localizable.xcstrings --keys "Welcome" --keys "Goodbye"
+# Translate multiple files
+xcstrings-localizer Localizable.xcstrings InfoPlist.xcstrings
 
-# Force re-translation
-xcstrings-localizer Localizable.xcstrings --force
+# Translate specific keys (works with auto-discovery)
+xcstrings-localizer --keys "Welcome" --keys "Goodbye"
+
+# Force re-translation of all strings
+xcstrings-localizer --force
 
 # Use better model (slower, more expensive, higher quality)
-xcstrings-localizer Localizable.xcstrings --model gpt-4o
+xcstrings-localizer --model gpt-4o
 
-# Preview changes
-xcstrings-localizer Localizable.xcstrings --dry-run
+# Preview changes (dry run)
+xcstrings-localizer --dry-run
+
+# Get AI suggestions for improving translations
+xcstrings-localizer --suggest
 
 # Get help
 xcstrings-localizer --help
@@ -71,13 +84,14 @@ xcstrings-localizer --help
 
 ## What It Does
 
-1. ✅ Reads your `.xcstrings` file
-2. ✅ Identifies untranslated strings
-3. ✅ Translates using OpenAI
-4. ✅ Respects `shouldTranslate: false`
-5. ✅ Uses comments for context
-6. ✅ Preserves placeholders
-7. ✅ Saves back to file
+1. ✅ Auto-discovers `.xcstrings` files in your project (or uses specified files)
+2. ✅ Reads target languages from your Xcode project's `knownRegions`
+3. ✅ Identifies untranslated strings
+4. ✅ Translates using OpenAI in efficient batches
+5. ✅ Respects `shouldTranslate: false` flags
+6. ✅ Uses comments for context
+7. ✅ Preserves placeholders (%@, %d, etc.)
+8. ✅ Saves translations back to file(s)
 
 ## Next Steps
 
