@@ -51,7 +51,7 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         2. Environment: export OPENAI_API_KEY='sk-...'
         3. Command line: --api-key 'sk-...'
         """,
-        version: "0.3.0"
+        version: "0.4.0"
     )
 
     @Argument(
