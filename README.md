@@ -18,35 +18,62 @@ A native Swift command-line tool for automatically localizing Xcode `.xcstrings`
 - ✅ **Preview Mode**: Dry-run to see changes before applying
 - ✅ **Placeholder Preservation**: Maintains format specifiers (`%@`, `%.0f`, etc.)
 - ✅ **Translation Caching**: Avoids redundant API calls
+- ✅ **Self-Updating**: Built-in update command and version notifications
 - ✅ **Zero Dependencies**: Pure Swift, no external packages except ArgumentParser
 
 ## Installation
 
-### Option 1: Build from Source (Recommended)
+### Quick Install (Recommended)
+
+One command to download and install the latest version:
 
 ```bash
-cd XCStringsLocalizer
-swift build -c release
+curl -fsSL https://raw.githubusercontent.com/tylerhillsman/XCStringsLocalizer/main/install.sh | bash
 ```
 
-The binary will be at `.build/release/xcstrings-localizer`
+This will:
+- Download the latest release from GitHub
+- Install to `/usr/local/bin`
+- Make it available globally as `xcstrings-localizer`
 
-### Option 2: Install to /usr/local/bin
+### Alternative Installation Methods
+
+<details>
+<summary>Build from Source</summary>
 
 ```bash
+git clone https://github.com/tylerhillsman/XCStringsLocalizer.git
 cd XCStringsLocalizer
 swift build -c release
 sudo cp .build/release/xcstrings-localizer /usr/local/bin/
 ```
+</details>
 
-Now you can use `xcstrings-localizer` from anywhere!
-
-### Option 3: Use Swift Package Manager
+<details>
+<summary>Use Swift Package Manager (Development)</summary>
 
 ```bash
+git clone https://github.com/tylerhillsman/XCStringsLocalizer.git
 cd XCStringsLocalizer
 swift run xcstrings-localizer --help
 ```
+</details>
+
+### Updating
+
+Keep your tool up to date with:
+
+```bash
+xcstrings-localizer update
+```
+
+Or re-run the installation script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tylerhillsman/XCStringsLocalizer/main/install.sh | bash
+```
+
+The tool will also notify you when new versions are available.
 
 ## Setup
 
