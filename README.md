@@ -28,7 +28,7 @@ A native Swift command-line tool for automatically localizing Xcode `.xcstrings`
 One command to download and install the latest version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tylerhillsman/XCStringsLocalizer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/thillsman/XCStringsLocalizer/main/install.sh | bash
 ```
 
 This will:
@@ -42,7 +42,7 @@ This will:
 <summary>Build from Source</summary>
 
 ```bash
-git clone https://github.com/tylerhillsman/XCStringsLocalizer.git
+git clone https://github.com/thillsman/XCStringsLocalizer.git
 cd XCStringsLocalizer
 swift build -c release
 sudo cp .build/release/xcstrings-localizer /usr/local/bin/
@@ -53,7 +53,7 @@ sudo cp .build/release/xcstrings-localizer /usr/local/bin/
 <summary>Use Swift Package Manager (Development)</summary>
 
 ```bash
-git clone https://github.com/tylerhillsman/XCStringsLocalizer.git
+git clone https://github.com/thillsman/XCStringsLocalizer.git
 cd XCStringsLocalizer
 swift run xcstrings-localizer --help
 ```
@@ -70,7 +70,7 @@ xcstrings-localizer update
 Or re-run the installation script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tylerhillsman/XCStringsLocalizer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/thillsman/XCStringsLocalizer/main/install.sh | bash
 ```
 
 The tool will also notify you when new versions are available.

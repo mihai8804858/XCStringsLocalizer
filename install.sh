@@ -4,7 +4,7 @@ set -e
 # XCStrings Localizer Installation Script
 # This script downloads and installs the latest version of xcstrings-localizer
 
-REPO="tylerhillsman/XCStringsLocalizer"
+REPO="thillsman/XCStringsLocalizer"
 BINARY_NAME="xcstrings-localizer"
 INSTALL_DIR="/usr/local/bin"
 TEMP_DIR=$(mktemp -d)
