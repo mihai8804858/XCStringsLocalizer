@@ -92,20 +92,20 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.next_version.outputs.version_without_v }}"
 
-          # Update VERSION file
-          echo "$NEW_VERSION" > VERSION
+          # Update Version.swift
+          sed -i '' "s/versionNumber = \".*\"/versionNumber = \"$NEW_VERSION\"/" Sources/Version.swift
 
           # Verify the change
-          cat VERSION
+          grep "versionNumber" Sources/Version.swift
 
           # Check if there are changes to commit
-          if git diff --quiet VERSION; then
+          if git diff --quiet Sources/Version.swift; then
             echo "No version changes needed"
           else
             # Commit the version update
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add VERSION
+            git add Sources/Version.swift
             git commit -m "chore: bump version to $NEW_VERSION"
             git push
           fi
@@ -159,18 +159,14 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.next_version.outputs.new_version }}"
 
-          # Create a zip file with the binary and VERSION file
+          # Create a zip file with the binary
           cd $BINARY_PATH
 
           # Binary name matches the command name from Package.swift
           BINARY_NAME="xcstrings-localizer"
 
           if [ -f "$BINARY_NAME" ]; then
-            # Copy VERSION file to binary directory
-            cp "${GITHUB_WORKSPACE}/VERSION" .
-
-            # Package binary and VERSION file together
-            zip -j "$BINARY_NAME-$NEW_VERSION-macos.zip" "$BINARY_NAME" "VERSION"
+            zip -j "$BINARY_NAME-$NEW_VERSION-macos.zip" "$BINARY_NAME"
             echo "PACKAGE_PATH=$BINARY_PATH/$BINARY_NAME-$NEW_VERSION-macos.zip" >> $GITHUB_ENV
             echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
             echo "ZIP_NAME=$BINARY_NAME-$NEW_VERSION-macos.zip" >> $GITHUB_ENV
