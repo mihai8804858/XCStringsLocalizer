@@ -115,7 +115,7 @@ struct Localize: AsyncParsableCommand {
         name: [.short, .long],
         help: "OpenAI model to use for translation"
     )
-    var model: String = "gpt-5-mini"
+    var model: String = Constants.defaultModel
 
     @Option(
         name: .long,
