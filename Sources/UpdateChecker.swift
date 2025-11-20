@@ -220,6 +220,11 @@ struct UpdateChecker {
             throw UpdateError.binaryNotFound
         }
 
+        let versionFilePath = tempDir.appendingPathComponent("VERSION")
+        guard FileManager.default.fileExists(atPath: versionFilePath.path) else {
+            throw UpdateError.versionFileNotFound
+        }
+
         // Get current binary location
         guard let currentBinaryPath = getCurrentBinaryPath() else {
             throw UpdateError.cannotDetermineCurrentLocation
@@ -229,59 +234,97 @@ struct UpdateChecker {
 
         // Check if we can write to the location
         let currentBinaryURL = URL(fileURLWithPath: currentBinaryPath)
-        let parentDir = currentBinaryURL.deletingLastPathComponent().path
+        let parentDir = currentBinaryURL.deletingLastPathComponent()
+        let currentVersionURL = parentDir.appendingPathComponent("VERSION")
 
         // Use atomic replacement: copy to temp location in same directory, then replace
         // This ensures we don't delete the old binary until the new one is successfully in place
-        let tempPath = currentBinaryURL.deletingLastPathComponent()
-            .appendingPathComponent(".\(UUID().uuidString)-xcstrings-localizer.tmp")
+        let tempBinaryPath = parentDir.appendingPathComponent(".\(UUID().uuidString)-xcstrings-localizer.tmp")
+        let tempVersionPath = parentDir.appendingPathComponent(".\(UUID().uuidString)-VERSION.tmp")
 
-        if FileManager.default.isWritableFile(atPath: parentDir) {
+        if FileManager.default.isWritableFile(atPath: parentDir.path) {
             // Direct atomic replacement
-            // 1. Copy new binary to temp location
-            try FileManager.default.copyItem(at: binaryPath, to: tempPath)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempPath.path)
+            // 1. Copy new binary and VERSION to temp locations
+            try FileManager.default.copyItem(at: binaryPath, to: tempBinaryPath)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempBinaryPath.path)
+            try FileManager.default.copyItem(at: versionFilePath, to: tempVersionPath)
 
             // 2. Atomically replace old binary with new one
             // replaceItemAt is atomic on the same filesystem
             _ = try FileManager.default.replaceItemAt(
                 currentBinaryURL,
-                withItemAt: tempPath,
+                withItemAt: tempBinaryPath,
                 backupItemName: nil,
                 options: []
             )
+
+            // 3. Replace VERSION file (or create if it doesn't exist)
+            if FileManager.default.fileExists(atPath: currentVersionURL.path) {
+                _ = try FileManager.default.replaceItemAt(
+                    currentVersionURL,
+                    withItemAt: tempVersionPath,
+                    backupItemName: nil,
+                    options: []
+                )
+            } else {
+                try FileManager.default.moveItem(at: tempVersionPath, to: currentVersionURL)
+            }
         } else {
             // Need sudo - use mv which is atomic on the same filesystem
             print("\nNeed administrator permission to update...", to: &stderrStream)
 
-            // First copy to temp location with sudo
-            let copyProcess = Process()
-            copyProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            copyProcess.arguments = ["cp", binaryPath.path, tempPath.path]
-            try copyProcess.run()
-            copyProcess.waitUntilExit()
+            // First copy binary and VERSION to temp locations with sudo
+            let copyBinaryProcess = Process()
+            copyBinaryProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            copyBinaryProcess.arguments = ["cp", binaryPath.path, tempBinaryPath.path]
+            try copyBinaryProcess.run()
+            copyBinaryProcess.waitUntilExit()
 
-            guard copyProcess.terminationStatus == 0 else {
-                try? FileManager.default.removeItem(at: tempPath)
+            guard copyBinaryProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempBinaryPath)
                 throw UpdateError.installationFailed
             }
 
-            // Set permissions
+            let copyVersionProcess = Process()
+            copyVersionProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            copyVersionProcess.arguments = ["cp", versionFilePath.path, tempVersionPath.path]
+            try copyVersionProcess.run()
+            copyVersionProcess.waitUntilExit()
+
+            guard copyVersionProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempBinaryPath)
+                try? FileManager.default.removeItem(at: tempVersionPath)
+                throw UpdateError.installationFailed
+            }
+
+            // Set permissions on binary
             let chmodProcess = Process()
             chmodProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            chmodProcess.arguments = ["chmod", "755", tempPath.path]
+            chmodProcess.arguments = ["chmod", "755", tempBinaryPath.path]
             try chmodProcess.run()
             chmodProcess.waitUntilExit()
 
-            // Atomically move temp file to final location (mv is atomic on same filesystem)
-            let mvProcess = Process()
-            mvProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            mvProcess.arguments = ["mv", "-f", tempPath.path, currentBinaryPath]
-            try mvProcess.run()
-            mvProcess.waitUntilExit()
+            // Atomically move temp files to final locations (mv is atomic on same filesystem)
+            let mvBinaryProcess = Process()
+            mvBinaryProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            mvBinaryProcess.arguments = ["mv", "-f", tempBinaryPath.path, currentBinaryPath]
+            try mvBinaryProcess.run()
+            mvBinaryProcess.waitUntilExit()
 
-            guard mvProcess.terminationStatus == 0 else {
-                try? FileManager.default.removeItem(at: tempPath)
+            guard mvBinaryProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempBinaryPath)
+                try? FileManager.default.removeItem(at: tempVersionPath)
+                throw UpdateError.installationFailed
+            }
+
+            let mvVersionProcess = Process()
+            mvVersionProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            mvVersionProcess.arguments = ["mv", "-f", tempVersionPath.path, currentVersionURL.path]
+            try mvVersionProcess.run()
+            mvVersionProcess.waitUntilExit()
+
+            guard mvVersionProcess.terminationStatus == 0 else {
+                try? FileManager.default.removeItem(at: tempVersionPath)
                 throw UpdateError.installationFailed
             }
         }
@@ -368,6 +411,7 @@ struct UpdateChecker {
         case noMacOSBinary
         case extractionFailed
         case binaryNotFound
+        case versionFileNotFound
         case cannotDetermineCurrentLocation
         case installationFailed
 
@@ -381,6 +425,8 @@ struct UpdateChecker {
                 return "Failed to extract downloaded file"
             case .binaryNotFound:
                 return "Binary not found in extracted files"
+            case .versionFileNotFound:
+                return "VERSION file not found in extracted files"
             case .cannotDetermineCurrentLocation:
                 return "Cannot determine current binary location"
             case .installationFailed:

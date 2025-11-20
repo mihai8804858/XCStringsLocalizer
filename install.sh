@@ -81,16 +81,24 @@ if [ ! -f "$BINARY_NAME" ]; then
     exit 1
 fi
 
+if [ ! -f "VERSION" ]; then
+    echo -e "${RED}Error: VERSION file not found in archive${NC}"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+
 # Make it executable
 chmod +x "$BINARY_NAME"
 
-# Install the binary
+# Install the binary and VERSION file
 echo -e "${BLUE}Installing to ${INSTALL_DIR}...${NC}"
 if [ -w "$INSTALL_DIR" ]; then
     mv "$BINARY_NAME" "${INSTALL_DIR}/"
+    mv "VERSION" "${INSTALL_DIR}/"
 else
     echo -e "${YELLOW}Need sudo permission to install to ${INSTALL_DIR}${NC}"
     sudo mv "$BINARY_NAME" "${INSTALL_DIR}/"
+    sudo mv "VERSION" "${INSTALL_DIR}/"
 fi
 
 # Clean up
