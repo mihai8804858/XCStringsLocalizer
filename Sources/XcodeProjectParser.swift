@@ -97,4 +97,86 @@ struct XcodeProjectParser {
 
         return xcstringsFiles.sorted()
     }
+
+    /// Find the localized-extras directory if it exists
+    static func findLocalizedExtrasDirectory(in directory: String = FileManager.default.currentDirectoryPath) -> String? {
+        let localizedExtrasPath = (directory as NSString).appendingPathComponent("localized-extras")
+        var isDirectory: ObjCBool = false
+
+        if FileManager.default.fileExists(atPath: localizedExtrasPath, isDirectory: &isDirectory),
+           isDirectory.boolValue {
+            return localizedExtrasPath
+        }
+
+        return nil
+    }
+
+    /// Find source files in localized-extras that don't have language suffixes
+    /// Returns array of file paths that need translation
+    static func findLocalizedExtrasSourceFiles(in directory: String) -> [String] {
+        var sourceFiles: [String] = []
+        let fileManager = FileManager.default
+
+        guard let contents = try? fileManager.contentsOfDirectory(atPath: directory) else {
+            return []
+        }
+
+        for filename in contents {
+            let filePath = (directory as NSString).appendingPathComponent(filename)
+
+            // Skip directories
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: filePath, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else {
+                continue
+            }
+
+            // Skip hidden files
+            if filename.hasPrefix(".") {
+                continue
+            }
+
+            // Check if filename has a language suffix by testing if the suffix is a valid language code
+            let nameWithoutExtension = (filename as NSString).deletingPathExtension
+            let components = nameWithoutExtension.components(separatedBy: ".")
+
+            var hasLanguageSuffix = false
+            if components.count >= 2 {
+                // Get the last component (potential language code)
+                let possibleLanguageCode = components.last!
+
+                // Use Locale to check if it's a valid language code
+                let locale = Locale(identifier: "en")
+                if locale.localizedString(forLanguageCode: possibleLanguageCode) != possibleLanguageCode {
+                    // If the localized string is different from the code, it's a valid language
+                    hasLanguageSuffix = true
+                }
+            }
+
+            // If no language suffix, it's a source file
+            if !hasLanguageSuffix {
+                sourceFiles.append(filePath)
+            }
+        }
+
+        return sourceFiles.sorted()
+    }
+
+    /// Generate localized file path for a source file
+    /// Example: /path/appstore.md + "fr" -> /path/appstore.fr.md
+    static func localizedFilePath(for sourcePath: String, language: String) -> String {
+        let directory = (sourcePath as NSString).deletingLastPathComponent
+        let filename = (sourcePath as NSString).lastPathComponent
+        let nameWithoutExtension = (filename as NSString).deletingPathExtension
+        let fileExtension = (filename as NSString).pathExtension
+
+        let localizedFilename: String
+        if !fileExtension.isEmpty {
+            localizedFilename = "\(nameWithoutExtension).\(language).\(fileExtension)"
+        } else {
+            localizedFilename = "\(nameWithoutExtension).\(language)"
+        }
+
+        return (directory as NSString).appendingPathComponent(localizedFilename)
+    }
 }

@@ -92,6 +92,22 @@ xcstrings-localizer --help
 6. ✅ Uses comments for context
 7. ✅ Preserves placeholders (%@, %d, etc.)
 8. ✅ Saves translations back to file(s)
+9. ✅ Automatically translates files in `localized-extras/` directory
+
+## Bonus: Translate Extra Files
+
+```bash
+# Create directory for App Store descriptions, release notes, etc.
+mkdir localized-extras
+
+# Add your marketing materials
+cp appstore-description.md localized-extras/
+
+# Run localizer - it will translate both .xcstrings AND extras!
+xcstrings-localizer
+
+# Result: appstore-description.fr.md, appstore-description.de.md, etc.
+```
 
 ## Next Steps
 

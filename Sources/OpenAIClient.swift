@@ -271,6 +271,53 @@ class OpenAIClient {
         return translatedText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Translate an entire text file to a target language
+    func translateFile(
+        content: String,
+        targetLanguage: String,
+        filename: String
+    ) async throws -> String {
+        let targetLanguageName = languageName(for: targetLanguage)
+
+        var prompt = """
+        Translate the entire following document to \(targetLanguageName).
+
+        IMPORTANT RULES:
+        1. Maintain the EXACT same formatting, including:
+           - Markdown syntax (headers, lists, links, code blocks, etc.)
+           - Line breaks and paragraph spacing
+           - Indentation
+           - Special characters
+        2. Preserve ALL technical terms, code snippets, URLs, and placeholders
+        3. Keep the same tone and style as the original
+        4. Translate naturally for a native speaker of \(targetLanguageName)
+        5. Do NOT add any explanations, notes, or comments
+        6. Return ONLY the translated document
+        """
+
+        if let appDesc = appDescription {
+            prompt += "\n7. App context: \(appDesc)"
+        }
+
+        prompt += "\n\nDocument filename: \(filename)"
+        prompt += "\n\nDocument content:\n\n\(content)"
+
+        let request = ChatCompletionRequest(
+            model: model,
+            messages: [
+                ChatMessage(role: "user", content: prompt)
+            ],
+            maxTokens: 4096
+        )
+
+        let response = try await sendRequest(request)
+        guard let translatedText = response.choices.first?.message.content else {
+            throw OpenAIError.noResponse
+        }
+
+        return translatedText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func sendRequest(_ request: ChatCompletionRequest) async throws -> ChatCompletionResponse {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var urlRequest = URLRequest(url: url)

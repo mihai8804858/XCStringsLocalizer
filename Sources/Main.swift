@@ -205,8 +205,94 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         if filesToProcess.count > 1 {
             print("", to: &stderrStream)
             print("═══════════════════════════════════════════════════════════", to: &stderrStream)
-            print("All files processed!", to: &stderrStream)
+            print("All .xcstrings files processed!", to: &stderrStream)
             print("═══════════════════════════════════════════════════════════", to: &stderrStream)
+        }
+
+        // Process localized-extras if the directory exists
+        if let extrasDir = XcodeProjectParser.findLocalizedExtrasDirectory(),
+           !suggest {  // Don't process extras in suggestion mode
+            print("", to: &stderrStream)
+            print("Found localized-extras directory", to: &stderrStream)
+
+            let sourceFiles = XcodeProjectParser.findLocalizedExtrasSourceFiles(in: extrasDir)
+            if !sourceFiles.isEmpty {
+                print("Found \(sourceFiles.count) source file(s) to translate:", to: &stderrStream)
+                for file in sourceFiles {
+                    let filename = (file as NSString).lastPathComponent
+                    print("  • \(filename)", to: &stderrStream)
+                }
+                print("", to: &stderrStream)
+
+                // Get target languages (same as for xcstrings)
+                // We'll use the localizer's client directly
+                let client = OpenAIClient(apiKey: apiKey, model: model, appDescription: appDescription)
+
+                // Determine target languages
+                var targetLanguages: Set<String> = []
+                if let projectLanguages = XcodeProjectParser.getProjectLanguages() {
+                    targetLanguages = Set(projectLanguages)
+                } else if !filesToProcess.isEmpty {
+                    // Get languages from first xcstrings file
+                    if let data = try? Data(contentsOf: URL(fileURLWithPath: filesToProcess[0])),
+                       let xcstrings = try? JSONDecoder().decode(XCStringsFile.self, from: data) {
+                        for entry in xcstrings.strings.values {
+                            if let localizations = entry.localizations {
+                                targetLanguages.formUnion(localizations.keys)
+                            }
+                        }
+                        targetLanguages.remove(xcstrings.sourceLanguage)
+                    }
+                }
+
+                if targetLanguages.isEmpty {
+                    print("Warning: No target languages found for localized-extras", to: &stderrStream)
+                } else {
+                    print("Translating to: \(targetLanguages.sorted().joined(separator: ", "))", to: &stderrStream)
+                    print("", to: &stderrStream)
+
+                    for sourceFile in sourceFiles {
+                        let filename = (sourceFile as NSString).lastPathComponent
+                        print("Processing: \(filename)", to: &stderrStream)
+
+                        // Read source file
+                        guard let content = try? String(contentsOfFile: sourceFile, encoding: .utf8) else {
+                            print("  ✗ Error reading file", to: &stderrStream)
+                            totalErrors += 1
+                            continue
+                        }
+
+                        for targetLang in targetLanguages.sorted() {
+                            let targetPath = XcodeProjectParser.localizedFilePath(for: sourceFile, language: targetLang)
+                            let targetFilename = (targetPath as NSString).lastPathComponent
+
+                            // Skip if target already exists (unless force)
+                            if FileManager.default.fileExists(atPath: targetPath) && !force {
+                                print("  ⊙ \(targetFilename) (already exists, skipping)", to: &stderrStream)
+                                continue
+                            }
+
+                            if !dryRun {
+                                do {
+                                    let translated = try await client.translateFile(
+                                        content: content,
+                                        targetLanguage: targetLang,
+                                        filename: filename
+                                    )
+
+                                    try translated.write(toFile: targetPath, atomically: true, encoding: .utf8)
+                                    print("  ✓ \(targetFilename)", to: &stderrStream)
+                                } catch {
+                                    print("  ✗ \(targetFilename): \(error.localizedDescription)", to: &stderrStream)
+                                    totalErrors += 1
+                                }
+                            } else {
+                                print("  ○ \(targetFilename) (would translate)", to: &stderrStream)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         print("\n✓ Localization complete!", to: &stderrStream)

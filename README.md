@@ -7,6 +7,7 @@ A native Swift command-line tool for automatically localizing Xcode `.xcstrings`
 - ✅ **Auto-Discovery**: Automatically finds all `.xcstrings` files in your project
 - ✅ **Xcode Project Integration**: Reads target languages from your project's `knownRegions`
 - ✅ **Multi-File Support**: Process one, multiple, or all `.xcstrings` files at once
+- ✅ **Localized Extras**: Automatically translates markdown/text files in `localized-extras/` directory
 - ✅ **Automatic Translation**: Translates strings to all target languages
 - ✅ **AI-Powered Suggestions**: Interactive review of existing translations with improvement suggestions
 - ✅ **Batch Processing**: Groups strings for efficient API calls (15 strings at a time)
@@ -117,6 +118,7 @@ swift run xcstrings-localizer
 1. **Language Detection**: Checks your Xcode project's `knownRegions` first, then falls back to languages in the catalog
 2. **File Discovery**: If no files specified, automatically finds all `.xcstrings` files in current directory and subdirectories
 3. **Smart Translation**: Only translates missing or new strings (use `--force` to retranslate all)
+4. **Localized Extras**: Automatically translates files in `localized-extras/` directory (see below)
 
 ### Common Options
 
@@ -157,6 +159,65 @@ xcstrings-localizer --model gpt-4o
 ```bash
 xcstrings-localizer --help
 ```
+
+## Localized Extras
+
+The tool automatically translates additional files beyond `.xcstrings` catalogs!
+
+### Setup
+
+Create a `localized-extras/` directory in your project root and place any files you want translated:
+
+```bash
+mkdir localized-extras
+cp appstore-description.md localized-extras/
+cp release-notes.txt localized-extras/
+```
+
+### How It Works
+
+1. Place source files (without language suffixes) in `localized-extras/`
+2. Run the localizer as normal
+3. Translated versions are automatically created with language suffixes
+
+**Example:**
+```
+localized-extras/
+├── appstore.md              # Source file
+├── appstore.fr.md           # Auto-generated French
+├── appstore.de.md           # Auto-generated German
+├── appstore.ja.md           # Auto-generated Japanese
+└── release-notes.txt        # Source file
+    ├── release-notes.fr.txt # Auto-generated
+    └── ...
+```
+
+### Supported File Types
+
+Any text file format:
+- Markdown (`.md`)
+- Plain text (`.txt`)
+- HTML (`.html`)
+- JSON (`.json`)
+- And more!
+
+### Behavior
+
+- **Smart Detection**: Files with language suffixes (`.fr.md`, `.de.txt`) are ignored as source files
+- **Skip Existing**: Already-translated files are skipped (use `--force` to retranslate)
+- **Same Languages**: Uses the same target languages as your `.xcstrings` files
+- **Preserves Formatting**: Maintains markdown syntax, code blocks, and special characters
+- **Dry Run Support**: Preview with `--dry-run` before translating
+
+### Use Cases
+
+Perfect for translating:
+- 📱 App Store descriptions
+- 📝 Release notes
+- 📄 README files
+- 🔒 Privacy policies
+- 📋 Terms of service
+- 📚 Documentation
 
 ## Examples
 
@@ -212,14 +273,43 @@ Saving to: /Users/you/MyApp/Localizable.xcstrings
 ✓ Localization complete!
 ```
 
-### Example 2: Update Marketing Copy
+### Example 2: Translate App Store Materials
 
 ```bash
-xcstrings-localizer Localizable.xcstrings \
-  --keys "App Store Description" \
-  --keys "Premium Feature Title" \
-  --force \
-  --model gpt-4o
+# Create localized-extras directory with marketing materials
+mkdir localized-extras
+cp marketing/appstore-description.md localized-extras/
+cp marketing/release-notes.md localized-extras/
+
+# Run localizer - translates both .xcstrings and extras
+xcstrings-localizer
+```
+
+**Output:**
+```
+Found 1 .xcstrings file(s):
+  • Localizable.xcstrings
+
+... (xcstrings translation) ...
+
+Found localized-extras directory
+Found 2 source file(s) to translate:
+  • appstore-description.md
+  • release-notes.md
+
+Translating to: fr, de, es, ja
+
+Processing: appstore-description.md
+  ✓ appstore-description.fr.md
+  ✓ appstore-description.de.md
+  ✓ appstore-description.es.md
+  ✓ appstore-description.ja.md
+
+Processing: release-notes.md
+  ✓ release-notes.fr.md
+  ✓ release-notes.de.md
+  ✓ release-notes.es.md
+  ✓ release-notes.ja.md
 ```
 
 ### Example 3: Review and Improve Existing Translations
