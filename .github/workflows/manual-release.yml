@@ -92,17 +92,21 @@ jobs:
           # Update version in Main.swift
           sed -i '' "s/version: \".*\"/version: \"$NEW_VERSION\"/" Sources/Main.swift
 
-          # Verify the change
+          # Update version in UpdateChecker.swift
+          sed -i '' "s/currentVersion = \".*\"/currentVersion = \"$NEW_VERSION\"/" Sources/UpdateChecker.swift
+
+          # Verify the changes
           grep "version:" Sources/Main.swift
+          grep "currentVersion" Sources/UpdateChecker.swift
 
           # Check if there are changes to commit
-          if git diff --quiet Sources/Main.swift; then
+          if git diff --quiet Sources/Main.swift Sources/UpdateChecker.swift; then
             echo "No version changes needed"
           else
             # Commit the version update
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add Sources/Main.swift
+            git add Sources/Main.swift Sources/UpdateChecker.swift
             git commit -m "chore: bump version to $NEW_VERSION"
             git push
           fi
