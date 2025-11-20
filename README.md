@@ -436,11 +436,19 @@ fi
 
 ## Models
 
-Available OpenAI models:
+Available OpenAI models (2024-2025):
 
-- **gpt-4o-mini** (default): Fast and cost-effective (~$0.15 per 1M tokens)
-- **gpt-4o**: Most capable, higher quality (~$2.50 per 1M tokens)
-- **gpt-4-turbo**: Balanced option
+- **gpt-4o-mini** (default): Best cost-performance balance for translation
+  - Input: $0.15 per 1M tokens
+  - Output: $0.60 per 1M tokens
+  - 128K context, excellent for most translation tasks
+
+- **gpt-4o**: Highest quality, recommended for premium content
+  - Input: $2.50 per 1M tokens
+  - Output: $10.00 per 1M tokens
+  - 128K context, multimodal capabilities
+
+**Recommendation:** Stick with `gpt-4o-mini` (default) for everyday translations. Only use `gpt-4o` for critical marketing copy, legal documents, or when you need the absolute best quality.
 
 ## Translation Behavior
 
@@ -580,12 +588,17 @@ The tool uses intelligent batch processing to minimize API calls:
 - **Faster execution** due to fewer network round-trips
 - **Lower costs** by reducing redundant prompt overhead
 
-### Cost Estimates
+### Cost Estimates (2024-2025 Pricing)
 
 For a typical app with 1000 strings and 10 target languages:
 
-- **gpt-4o-mini**: ~$0.50-$1.00 for complete translation (with batching)
-- **gpt-4o**: ~$10-$20 for complete translation (with batching)
+- **gpt-4o-mini** (default): ~$0.50-$1.50 for complete translation (with batching)
+  - Input: $0.15 per 1M tokens
+  - Output: $0.60 per 1M tokens
+
+- **gpt-4o**: ~$10-$25 for complete translation (with batching)
+  - Input: $2.50 per 1M tokens
+  - Output: $10.00 per 1M tokens
 
 **Without batching, costs would be ~10-15x higher!**
 
