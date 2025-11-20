@@ -1,55 +1,10 @@
 import Foundation
 
 struct UpdateChecker {
-    static let currentVersion: String = {
-        // Try to read version from VERSION file bundled with the binary
-        // This file should be in the same directory as the executable or in Resources
-        if let versionString = try? String(contentsOf: versionFileURL(), encoding: .utf8) {
-            return versionString.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        // Fallback version if VERSION file is not found
-        return "0.5.1"
-    }()
-
+    static let currentVersion = Version.versionNumber
     static let repo = "thillsman/XCStringsLocalizer"
     static let cacheFile = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".xcstrings-localizer-version-check")
-
-    private static func versionFileURL() -> URL {
-        // First try: VERSION file in the same directory as the executable
-        if let executablePath = Bundle.main.executablePath {
-            let executableURL = URL(fileURLWithPath: executablePath)
-            let versionURL = executableURL.deletingLastPathComponent().appendingPathComponent("VERSION")
-            if FileManager.default.fileExists(atPath: versionURL.path) {
-                return versionURL
-            }
-        }
-
-        // Second try: VERSION file in Resources bundle (for development)
-        if let resourceURL = Bundle.main.url(forResource: "VERSION", withExtension: nil) {
-            return resourceURL
-        }
-
-        // Third try: VERSION file in the root of the package (for development with swift run)
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        let versionURL = currentDirectory.appendingPathComponent("VERSION")
-        if FileManager.default.fileExists(atPath: versionURL.path) {
-            return versionURL
-        }
-
-        // Fourth try: Go up directories to find VERSION (for development)
-        var searchURL = currentDirectory
-        for _ in 0..<5 {
-            let versionURL = searchURL.appendingPathComponent("VERSION")
-            if FileManager.default.fileExists(atPath: versionURL.path) {
-                return versionURL
-            }
-            searchURL = searchURL.deletingLastPathComponent()
-        }
-
-        // Fallback to current directory
-        return currentDirectory.appendingPathComponent("VERSION")
-    }
 
     struct GitHubRelease: Codable {
         let tagName: String
@@ -229,14 +184,13 @@ struct UpdateChecker {
 
         // Check if we can write to the location
         let currentBinaryURL = URL(fileURLWithPath: currentBinaryPath)
-        let parentDir = currentBinaryURL.deletingLastPathComponent().path
+        let parentDir = currentBinaryURL.deletingLastPathComponent()
 
         // Use atomic replacement: copy to temp location in same directory, then replace
         // This ensures we don't delete the old binary until the new one is successfully in place
-        let tempPath = currentBinaryURL.deletingLastPathComponent()
-            .appendingPathComponent(".\(UUID().uuidString)-xcstrings-localizer.tmp")
+        let tempPath = parentDir.appendingPathComponent(".\(UUID().uuidString)-xcstrings-localizer.tmp")
 
-        if FileManager.default.isWritableFile(atPath: parentDir) {
+        if FileManager.default.isWritableFile(atPath: parentDir.path) {
             // Direct atomic replacement
             // 1. Copy new binary to temp location
             try FileManager.default.copyItem(at: binaryPath, to: tempPath)
