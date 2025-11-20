@@ -22,6 +22,7 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         • Translation caching for efficiency
         • Dry run mode to preview changes
         • AI-powered translation improvement suggestions
+        • Self-update capability
 
         EXAMPLES:
         # Auto-discover and translate all .xcstrings files in current directory
@@ -45,13 +46,27 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         # Get AI suggestions for improving existing translations
         xcstrings-localizer --suggest
 
+        # Update to latest version
+        xcstrings-localizer update
+
         SETUP:
         Set your OpenAI API key via:
         1. .env file: echo "OPENAI_API_KEY='sk-...'" > .env
         2. Environment: export OPENAI_API_KEY='sk-...'
         3. Command line: --api-key 'sk-...'
         """,
-        version: "0.4.0"
+        version: "0.4.0",
+        subcommands: [Localize.self, Update.self],
+        defaultSubcommand: Localize.self
+    )
+}
+
+// MARK: - Localize Subcommand
+
+struct Localize: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "localize",
+        abstract: "Translate .xcstrings files (default command)"
     )
 
     @Argument(
@@ -109,6 +124,9 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
     var apiKey: String?
 
     mutating func run() async throws {
+        // Check for updates in background (non-blocking)
+        UpdateChecker.checkForUpdatesAsync()
+
         // Check for API key
         guard let apiKey = Config.loadAPIKey(from: apiKey) else {
             print("Error: OPENAI_API_KEY not found", to: &stderrStream)
@@ -301,5 +319,18 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         if totalErrors > 0 {
             throw ExitCode(1)
         }
+    }
+}
+
+// MARK: - Update Subcommand
+
+struct Update: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "update",
+        abstract: "Update xcstrings-localizer to the latest version"
+    )
+
+    mutating func run() async throws {
+        try await UpdateChecker.performUpdate()
     }
 }
