@@ -1,7 +1,7 @@
 import Foundation
 
 struct UpdateChecker {
-    static let currentVersion = "0.5.0"
+    static let currentVersion = "0.5.1"
     static let repo = "thillsman/XCStringsLocalizer"
     static let cacheFile = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".xcstrings-localizer-version-check")
