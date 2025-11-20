@@ -17,7 +17,7 @@ class XCStringsLocalizer {
         let context: String?
     }
 
-    init(apiKey: String, model: String = "gpt-5-mini", appDescription: String? = nil) {
+    init(apiKey: String, model: String = Constants.defaultModel, appDescription: String? = nil) {
         self.client = OpenAIClient(apiKey: apiKey, model: model, appDescription: appDescription)
     }
 

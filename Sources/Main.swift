@@ -55,7 +55,7 @@ struct XCStringsLocalizerCLI: AsyncParsableCommand {
         2. Environment: export OPENAI_API_KEY='sk-...'
         3. Command line: --api-key 'sk-...'
         """,
-        version: "0.5.1",
+        version: UpdateChecker.currentVersion,
         subcommands: [Localize.self, Update.self],
         defaultSubcommand: Localize.self
     )
@@ -115,7 +115,7 @@ struct Localize: AsyncParsableCommand {
         name: [.short, .long],
         help: "OpenAI model to use for translation"
     )
-    var model: String = "gpt-5-mini"
+    var model: String = Constants.defaultModel
 
     @Option(
         name: .long,
