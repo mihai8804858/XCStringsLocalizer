@@ -667,3 +667,22 @@ Built with:
 ---
 
 **Happy Localizing!** 🌍
+
+## Author
+
+[Tyler Hillsman](https://tylerhillsman.com)
+
+[![Bluesky][bluesky_image]][bluesky_url]  
+[![LinkedIn][linkedin_image]][linkedin_url]  
+[![Mastodon][mastodon_image]][mastodon_url]
+
+[bluesky_image]: https://img.shields.io/badge/Bluesky-0285FF?logo=bluesky&logoColor=fff
+[bluesky_url]: https://bsky.app/profile/thillsman.me
+[linkedin_image]: https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=fff
+[linkedin_url]: https://www.linkedin.com/in/tylerhillsman
+[mastodon_image]: https://img.shields.io/mastodon/follow/412018?domain=https%3A%2F%2Fmastodon.social&style=social
+[mastodon_url]: https://mastodon.social/@thillsman
+
+## License & Attribution
+
+XCStringsLocalizer is available under the **MIT License**. See `LICENSE` for details.
