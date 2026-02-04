@@ -205,7 +205,8 @@ struct Localize: AsyncParsableCommand {
                         outputPath: output,
                         keys: keys.isEmpty ? nil : keys,
                         force: force,
-                        dryRun: dryRun
+                        dryRun: dryRun,
+                        languages: language.isEmpty ? nil : language
                     )
 
                     totalErrors += stats.errors

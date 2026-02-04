@@ -20,11 +20,13 @@ struct StringEntry: Codable {
     var comment: String?
     var shouldTranslate: Bool?
     var localizations: [String: Localization]?
+    var extractionState: String?
 
     enum CodingKeys: String, CodingKey {
         case comment
         case shouldTranslate
         case localizations
+        case extractionState
     }
 
     init(from decoder: Decoder) throws {
@@ -32,6 +34,7 @@ struct StringEntry: Codable {
         comment = try container.decodeIfPresent(String.self, forKey: .comment)
         shouldTranslate = try container.decodeIfPresent(Bool.self, forKey: .shouldTranslate)
         localizations = try container.decodeIfPresent([String: Localization].self, forKey: .localizations)
+        extractionState = try container.decodeIfPresent(String.self, forKey: .extractionState)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -39,6 +42,7 @@ struct StringEntry: Codable {
         try container.encodeIfPresent(comment, forKey: .comment)
         try container.encodeIfPresent(shouldTranslate, forKey: .shouldTranslate)
         try container.encodeIfPresent(localizations, forKey: .localizations)
+        try container.encodeIfPresent(extractionState, forKey: .extractionState)
     }
 }
 
@@ -70,12 +74,30 @@ enum TranslationState: String, Codable {
     case translated
     case needsReview = "needs_review"
     case stale
+
+    var needsTranslation: Bool {
+        self == .new || self == .stale
+    }
 }
 
 /// Variations for plural/device-specific strings
 struct LocalizationVariations: Codable {
-    var plural: [String: StringUnit]?
-    var device: [String: StringUnit]?
+    var plural: [String: LocalizationVariationStringUnit]?
+    var device: [String: LocalizationVariationStringUnit]?
+}
+
+struct LocalizationVariationStringUnit: Codable {
+    var stringUnit: StringUnit
+}
+
+struct LocalizationVariation: Codable {
+    enum Kind: String, Codable {
+        case plural
+        case device
+    }
+
+    var type: Kind
+    var variation: String
 }
 
 // MARK: - Statistics
@@ -117,6 +139,7 @@ struct TranslationStats {
 /// A suggestion for improving an existing translation
 struct TranslationSuggestion: Codable {
     let key: String
+    let variation: LocalizationVariation?
     let language: String
     let currentTranslation: String
     let suggestedTranslation: String
