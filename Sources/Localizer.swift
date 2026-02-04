@@ -27,7 +27,8 @@ class XCStringsLocalizer {
         outputPath: String? = nil,
         keys: [String]? = nil,
         force: Bool = false,
-        dryRun: Bool = false
+        dryRun: Bool = false,
+        languages: [String]? = nil
     ) async throws -> TranslationStats {
         stats.reset()
 
@@ -39,7 +40,16 @@ class XCStringsLocalizer {
 
         let sourceLanguage = xcstrings.sourceLanguage
         let allLanguages = getAllLanguages(from: xcstrings)
-        let targetLanguages = allLanguages.subtracting([sourceLanguage])
+        var targetLanguages = allLanguages.subtracting([sourceLanguage])
+
+        // Filter languages if specified
+        if let languages {
+            targetLanguages = targetLanguages.intersection(Set(languages))
+            if targetLanguages.isEmpty {
+                print("Error: None of the specified languages found in file", to: &stderrStream)
+                return stats
+            }
+        }
 
         print("Source language: \(sourceLanguage)", to: &stderrStream)
         print("Target languages: \(targetLanguages.sorted().joined(separator: ", "))", to: &stderrStream)
@@ -61,7 +71,7 @@ class XCStringsLocalizer {
         // Group strings by target language for batch processing
         for language in targetLanguages {
             // Collect all strings that need translation for this language
-            var toTranslate: [(key: String, sourceText: String, comment: String?, entry: StringEntry)] = []
+            var toTranslate: [(key: String, variation: LocalizationVariation?, sourceText: String, comment: String?, entry: StringEntry)] = []
 
             for (key, entry) in stringsToProcess {
                 // Check if we should translate this key
@@ -81,8 +91,15 @@ class XCStringsLocalizer {
                     continue
                 }
 
-                let sourceText = getSourceText(key: key, localizations: entry.localizations)
-                toTranslate.append((key: key, sourceText: sourceText, comment: entry.comment, entry: entry))
+                for text in getSourceTexts(key: key, language: sourceLanguage, localizations: entry.localizations) {
+                    toTranslate.append((
+                        key: key,
+                        variation: text.variation,
+                        sourceText: text.value,
+                        comment: entry.comment,
+                        entry: entry
+                    ))
+                }
             }
 
             if toTranslate.isEmpty {
@@ -102,7 +119,13 @@ class XCStringsLocalizer {
                 if !dryRun {
                     do {
                         // Prepare batch input
-                        let batchInput = batch.map { (key: $0.key, text: $0.sourceText, context: $0.comment) }
+                        let batchInput = batch.map {
+                            if let variation = $0.variation {
+                                (key: $0.key.appending("_\(variation)"), variation: $0.variation, text: $0.sourceText, context: $0.comment)
+                            } else {
+                                (key: $0.key, variation: $0.variation, text: $0.sourceText, context: $0.comment)
+                            }
+                        }
 
                         // Translate the batch
                         let translations = try await client.translateBatch(
@@ -112,15 +135,37 @@ class XCStringsLocalizer {
 
                         // Apply translations
                         for item in batch {
-                            if let translated = translations[item.key] {
-                                var entry = item.entry
-                                if entry.localizations == nil {
-                                    entry.localizations = [:]
+                            let key = if let variation = item.variation {
+                                item.key.appending("_\(variation)")
+                            } else {
+                                item.key
+                            }
+                            if let translated = translations[key] {
+                                var entry = xcstrings.strings[item.key] ?? item.entry
+                                if entry.localizations == nil { entry.localizations = [:] }
+                                if let variation = item.variation {
+                                    let unit = LocalizationVariationStringUnit(stringUnit: StringUnit(
+                                        state: .translated,
+                                        value: translated
+                                    ))
+                                    switch variation.type {
+                                    case .plural:
+                                        if entry.localizations?[language] == nil {
+                                            entry.localizations?[language] = Localization(variations: .init(plural: [:]))
+                                        }
+                                        entry.localizations?[language]?.variations?.plural?[variation.variation] = unit
+                                    case .device:
+                                        if entry.localizations?[language] == nil {
+                                            entry.localizations?[language] = Localization(variations: .init(device: [:]))
+                                        }
+                                        entry.localizations?[language]?.variations?.device?[variation.variation] = unit
+                                    }
+                                } else {
+                                    entry.localizations?[language] = Localization(
+                                        stringUnit: StringUnit(state: .translated, value: translated),
+                                        variations: nil
+                                    )
                                 }
-                                entry.localizations?[language] = Localization(
-                                    stringUnit: StringUnit(state: .translated, value: translated),
-                                    variations: nil
-                                )
                                 xcstrings.strings[item.key] = entry
                                 stats.translated += 1
                             } else {
@@ -206,24 +251,18 @@ class XCStringsLocalizer {
         // Process each target language
         for language in targetLanguages.sorted() {
             // Collect all translated strings for this language
-            var toAnalyze: [(key: String, original: String, translation: String, context: String?)] = []
+            var toAnalyze: [(key: String, variation: LocalizationVariation?, original: String, translation: String, context: String?)] = []
 
             for (key, entry) in stringsToProcess {
-                // Only analyze strings that have been translated
-                guard let localization = entry.localizations?[language],
-                      let stringUnit = localization.stringUnit,
-                      stringUnit.state == .translated,
-                      !stringUnit.value.isEmpty else {
-                    continue
+                for text in getSourceTexts(key: key, language: sourceLanguage, localizations: entry.localizations) {
+                    toAnalyze.append((
+                        key: key,
+                        variation: text.variation,
+                        original: text.value,
+                        translation: text.value,
+                        context: entry.comment
+                    ))
                 }
-
-                let sourceText = getSourceText(key: key, localizations: entry.localizations)
-                toAnalyze.append((
-                    key: key,
-                    original: sourceText,
-                    translation: stringUnit.value,
-                    context: entry.comment
-                ))
             }
 
             if toAnalyze.isEmpty {
@@ -294,10 +333,23 @@ class XCStringsLocalizer {
                         if entry.localizations == nil {
                             entry.localizations = [:]
                         }
-                        entry.localizations?[suggestion.language] = Localization(
-                            stringUnit: StringUnit(state: .translated, value: suggestion.suggestedTranslation),
-                            variations: nil
-                        )
+                        if let variation = suggestion.variation {
+                            let unit = LocalizationVariationStringUnit(stringUnit: StringUnit(
+                                state: .translated,
+                                value: suggestion.suggestedTranslation
+                            ))
+                            switch variation.type {
+                            case .plural:
+                                entry.localizations?[suggestion.language]?.variations?.plural?[variation.variation] = unit
+                            case .device:
+                                entry.localizations?[suggestion.language]?.variations?.device?[variation.variation] = unit
+                            }
+                        } else {
+                            entry.localizations?[suggestion.language] = Localization(
+                                stringUnit: StringUnit(state: .translated, value: suggestion.suggestedTranslation),
+                                variations: nil
+                            )
+                        }
                         xcstrings.strings[suggestion.key] = entry
                         acceptedCount += 1
                         print("✓ Applied\n", to: &stderrStream)
@@ -356,13 +408,41 @@ class XCStringsLocalizer {
         return languages
     }
 
-    private func getSourceText(key: String, localizations: [String: Localization]?) -> String {
-        // Try to get English localization first
-        if let enValue = localizations?["en"]?.stringUnit?.value, !enValue.isEmpty {
-            return enValue
+    private func getSourceTexts(
+        key: String,
+        language: String,
+        localizations: [String: Localization]?
+    ) -> [(value: String, variation: LocalizationVariation?)] {
+        guard let localization = localizations?[language] else { return [] }
+
+        var texts: [(value: String, variation: LocalizationVariation?)] = []
+
+        // Add default source
+        if let unit = localization.stringUnit, !unit.value.isEmpty {
+            texts.append((value: unit.value, variation: nil))
         }
-        // Fall back to the key itself
-        return key
+
+        // Add plural sources
+        if let plural = localization.variations?.plural {
+            for (variation, unit) in plural where !unit.stringUnit.value.isEmpty {
+                texts.append((
+                    value: unit.stringUnit.value,
+                    variation: LocalizationVariation(type: .plural, variation: variation)
+                ))
+            }
+        }
+
+        // Add device sources
+        if let device = localization.variations?.device {
+            for (variation, unit) in device where !unit.stringUnit.value.isEmpty {
+                texts.append((
+                    value: unit.stringUnit.value,
+                    variation: LocalizationVariation(type: .device, variation: variation)
+                ))
+            }
+        }
+
+        return texts
     }
 
     private func shouldTranslateKey(entry: StringEntry, force: Bool) -> Bool {
@@ -384,10 +464,17 @@ class XCStringsLocalizer {
         }
 
         // If no localization exists, we need to translate
-        guard let localization = localization,
-              let stringUnit = localization.stringUnit else {
+        guard let localization else {
             return true
         }
+
+        let stringUnits = [
+            [localization.stringUnit].compactMap { $0 },
+            localization.variations?.plural?.values.map(\.stringUnit),
+            localization.variations?.device?.values.map(\.stringUnit)
+        ].compactMap { $0 }.flatMap { $0 }
+
+        if stringUnits.isEmpty { return true }
 
         // If force is enabled, always translate
         if force {
@@ -395,7 +482,7 @@ class XCStringsLocalizer {
         }
 
         // Translate if state is "new" or value is empty
-        return stringUnit.state == .new || stringUnit.value.isEmpty
+        return stringUnits.contains(where: \.state.needsTranslation) || stringUnits.contains(where: \.value.isEmpty)
     }
 
     private func translateText(

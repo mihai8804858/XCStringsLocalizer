@@ -25,7 +25,7 @@ class OpenAIClient {
 
     /// Batch translate multiple strings to a target language (more efficient)
     func translateBatch(
-        strings: [(key: String, text: String, context: String?)],
+        strings: [(key: String, variation: LocalizationVariation?, text: String, context: String?)],
         targetLanguage: String
     ) async throws -> [String: String] {
         let targetLanguageName = languageName(for: targetLanguage)
@@ -82,7 +82,7 @@ class OpenAIClient {
             messages: [
                 ChatMessage(role: "user", content: prompt)
             ],
-            maxTokens: 4096
+            maxTokens: 8192
         )
 
         let response = try await sendRequest(request)
@@ -115,7 +115,7 @@ class OpenAIClient {
 
     /// Analyze existing translations and suggest improvements
     func analyzeBatch(
-        translations: [(key: String, original: String, translation: String, context: String?)],
+        translations: [(key: String, variation: LocalizationVariation?, original: String, translation: String, context: String?)],
         targetLanguage: String
     ) async throws -> [TranslationSuggestion] {
         let targetLanguageName = languageName(for: targetLanguage)
@@ -213,6 +213,7 @@ class OpenAIClient {
 
                 suggestions.append(TranslationSuggestion(
                     key: item.key,
+                    variation: item.variation,
                     language: targetLanguage,
                     currentTranslation: item.translation,
                     suggestedTranslation: suggested,
@@ -322,6 +323,7 @@ class OpenAIClient {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = 600 // 10 min
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
